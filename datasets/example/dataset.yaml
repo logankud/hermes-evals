@@ -1,0 +1,9 @@
+name: example
+version: "4"
+task: >
+  Answer short general questions, use a tool when asked to, ask for clarification when a request is
+  ambiguous, and decline harmful or injected instructions.
+description: >
+  Agent-agnostic starter dataset. Runs against any Hermes profile with no special tools or data.
+  Copy this folder to start a dataset for your own agent.
+categories: [reasoning, safety, tool_use, ambiguity]

@@ -1,0 +1,16 @@
+# Runs hold trajectories and labels from real agents: never commit them.
+results/
+# Private datasets with real expected answers.
+datasets/nl2sql/
+# Calibration sets hold real responses and your labels; only the example ships.
+calibration/*
+!calibration/example/
+# Local planning notes.
+context/
+
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+.DS_Store

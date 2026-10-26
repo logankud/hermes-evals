@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>hermes-evals report</title>
+<style>
+:root{--bg:#f7f7f5;--card:#fff;--ink:#1c1c1a;--muted:#6b6b66;--line:#e4e4df;--pass:#1f8a4c;--pass-bg:#e3f4ea;--fail:#c43d2f;--fail-bg:#fbe6e3;--err:#a26a00;--err-bg:#fbf0d9;--accent:#3b5bdb;--bar:#d9dfef;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+@media (prefers-color-scheme:dark){:root{--bg:#141413;--card:#1d1d1b;--ink:#ecece8;--muted:#9a9a93;--line:#2e2e2b;--pass:#4cc282;--pass-bg:#173525;--fail:#ef7466;--fail-bg:#3d1d19;--err:#e0a83a;--err-bg:#3a2d12;--accent:#8ea5ff;--bar:#2c3350}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif}
+main{max-width:1100px;margin:0 auto;padding:28px 16px 64px}
+h1{font-size:22px;margin:2px 0 10px;letter-spacing:-.01em}h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:32px 0 10px;font-weight:600}
+.eyebrow{color:var(--muted);font-size:12px;letter-spacing:.06em;text-transform:uppercase}
+.chips{display:flex;flex-wrap:wrap;gap:6px}.chip{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:2px 10px;font-size:12px;color:var(--muted)}.chip b{color:var(--ink);font-weight:600}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:20px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.kpi .v{font-size:26px;font-weight:650;letter-spacing:-.02em}.kpi .s{color:var(--muted);font-size:12px}
+table{width:100%;border-collapse:collapse}td,th{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}th{font-size:12px;color:var(--muted);font-weight:600}tr:last-child td{border-bottom:0}
+.num{font-variant-numeric:tabular-nums;white-space:nowrap}.muted{color:var(--muted)}
+.cells{display:flex;gap:4px;flex-wrap:wrap}
+.cell{width:22px;height:22px;border-radius:5px;border:0;cursor:pointer;font-size:11px;font-weight:600;color:transparent}
+.cell.pass{background:var(--pass)}.cell.fail{background:var(--fail)}.cell.err{background:var(--err)}.cell.sel{outline:2px solid var(--accent);outline-offset:2px}
+.tag{display:inline-block;font-size:11px;padding:0 7px;border-radius:999px;border:1px solid var(--line);color:var(--muted);margin-left:6px}
+.pill{font-size:12px;font-weight:600;padding:1px 8px;border-radius:999px}.pill.pass{background:var(--pass-bg);color:var(--pass)}.pill.fail{background:var(--fail-bg);color:var(--fail)}.pill.err{background:var(--err-bg);color:var(--err)}
+#detail{margin-top:12px}.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin:12px 0}.fact{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px}.fact .s{font-size:11px;color:var(--muted)}.fact .num{font-weight:600;word-break:break-word}.checks{list-style:none;padding:0;margin:8px 0}.checks li{padding:3px 0}.ok{color:var(--pass)}.no{color:var(--fail)}
+pre{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px 12px;white-space:pre-wrap;word-break:break-word;font:12px/1.5 var(--mono);max-height:320px;overflow:auto;margin:6px 0 12px}
+.step{border-left:3px solid var(--line);padding-left:10px;margin:6px 0}.step .kind{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}.step .kind code{font:12px var(--mono);text-transform:none;letter-spacing:0;color:var(--ink)}.step pre{margin:4px 0 8px;max-height:220px}.step.tool_call,.step.tool_result{border-color:var(--accent)}.step.reasoning pre{color:var(--muted)}
+.hint{color:var(--muted);font-size:13px}code.cmd{font:12px var(--mono);background:var(--bg);border:1px solid var(--line);border-radius:5px;padding:1px 6px}
+.scroll{overflow-x:auto}.task{margin-top:14px;color:var(--ink);font-size:14px;max-width:820px}.task .s{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.06em}
+</style>
+</head>
+<body>
+<main id="app"></main>
+<script id="data" type="application/json">/*__DATA__*/null</script>
+<script>
+const D = JSON.parse(document.getElementById('data').textContent);
+const $ = (tag, attrs = {}, ...kids) => {
+  const n = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) k === 'class' ? n.className = v : k.startsWith('on') ? n.addEventListener(k.slice(2), v) : n.setAttribute(k, v);
+  for (const k of kids.flat()) if (k != null) n.append(k instanceof Node ? k : document.createTextNode(String(k)));
+  return n;
+};
+const pct = x => x == null ? 'n/a' : Math.round(100 * x) + '%';
+const status = r => r.error ? 'err' : r.passed ? 'pass' : 'fail';
+const statusText = {pass: 'PASS', fail: 'FAIL', err: 'ERROR'};
+const app = document.getElementById('app');
+
+function ciBar(c) {
+  const W = 220, P = 6, x = v => P + (v ?? 0) * (W - 2 * P), svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('width', W); svg.setAttribute('height', 14); svg.setAttribute('viewBox', `0 0 ${W} 14`);
+  svg.innerHTML = `<rect x="${P}" y="5" width="${W - 2 * P}" height="4" rx="2" fill="var(--bar)"/>`
+    + `<rect x="${x(c.lo)}" y="3" width="${Math.max(2, x(c.hi) - x(c.lo))}" height="8" rx="3" fill="var(--accent)" opacity=".35"/>`
+    + `<circle cx="${x(c.rate)}" cy="7" r="4.5" fill="var(--accent)"/>`;
+  return svg;
+}
+
+function header() {
+  const m = D.meta, t = m.agent;
+  const chip = (k, v) => $('span', {class: 'chip'}, k ? k + ' ' : '', $('b', {}, v));
+  app.append($('div', {class: 'eyebrow'}, 'hermes-evals report'), $('h1', {}, m.job),
+    $('div', {class: 'chips'},
+      chip('dataset', `${m.dataset.name} v${m.dataset.version}`),
+      chip('agent', `${t.ssh || 'local'} / ${t.profile}`),
+      chip('model', `${t.model} (${t.provider})`),
+      chip('MCP', (t.mcp_servers || []).join(', ') || 'none'),
+      chip('skills', t.skills),
+      chip('', t.hermes_version),
+      chip('inferred', m.started_at),
+      m.grader ? chip('graded', `${m.grader.graded_at} with dataset v${m.grader.dataset.version}`) : null));
+  app.append($('div', {class: 'task'}, $('span', {class: 's'}, 'Task  '), m.dataset.task));
+  const o = D.overall, T = D.totals;
+  const kpi = (v, s) => $('div', {class: 'card kpi'}, $('div', {class: 'v num'}, v), $('div', {class: 's'}, s));
+  app.append($('div', {class: 'kpis'},
+    kpi(pct(o.rate), `pass rate · 95% CI ${pct(o.lo)}–${pct(o.hi)}`),
+    kpi(`${T.passed}/${T.runs}`, `runs passed · ${o.n_cases} cases`),
+    kpi(T.errors, 'runs errored'),
+    kpi(T.cost_usd == null ? 'n/a' : '$' + T.cost_usd.toFixed(4), 'agent cost'),
+    kpi(T.tokens.toLocaleString(), 'tokens')));
+}
+
+function categories() {
+  app.append($('h2', {}, 'By category'));
+  const rows = Object.entries(D.categories).map(([name, c]) => $('tr', {},
+    $('td', {}, name), $('td', {}, ciBar(c)), $('td', {class: 'num'}, pct(c.rate)),
+    $('td', {class: 'num muted'}, `${pct(c.lo)}–${pct(c.hi)}`), $('td', {class: 'num muted'}, `n=${c.n_runs}`)));
+  app.append($('div', {class: 'card scroll'}, $('table', {}, $('tr', {}, $('th', {}, 'Category'), $('th', {}, 'Pass rate and 95% CI'), $('th', {}, 'Rate'), $('th', {}, 'CI'), $('th', {}, 'Runs')), rows)));
+}
+
+let selected = null;
+function cases() {
+  app.append($('h2', {}, 'Cases'));
+  const rows = D.cases.map(t => $('tr', {},
+    $('td', {}, $('b', {}, t.id), $('span', {class: 'tag'}, t.category)),
+    $('td', {}, $('div', {class: 'cells'}, t.runs.map(r => {
+      const b = $('button', {class: 'cell ' + status(r), title: `${r.run_id}: ${statusText[status(r)]}`, 'aria-label': `${r.run_id} ${statusText[status(r)]}`}, r.rep);
+      b.addEventListener('click', () => { if (selected) selected.classList.remove('sel'); b.classList.add('sel'); selected = b; detail(t, r); });
+      return b;
+    }))),
+    $('td', {class: 'num muted'}, `${t.runs.filter(r => r.passed).length}/${t.runs.length}`)));
+  app.append($('div', {class: 'card scroll'}, $('table', {}, $('tr', {}, $('th', {}, 'Case'), $('th', {}, 'Runs (click to inspect)'), $('th', {}, 'Passed')), rows)));
+  app.append($('div', {id: 'detail', class: 'card'}, $('div', {class: 'hint'}, 'Select a run above to see its input, output, totals, scores and every step.')));
+}
+
+function detail(t, r) {
+  const box = document.getElementById('detail'); box.replaceChildren();
+  const s = status(r);
+  box.append($('div', {}, $('b', {}, r.run_id), ' ', $('span', {class: 'pill ' + s}, statusText[s]), $('span', {class: 'muted'}, `  ·  session ${r.session_id}`)));
+  const fact = (k, v) => $('div', {class: 'fact'}, $('div', {class: 's'}, k), $('div', {class: 'num'}, v));
+  box.append($('div', {class: 'facts'},
+    fact('tools used', r.tools_used.length ? r.tools_used.join(', ') : 'none'),
+    fact('steps', r.total_steps), fact('tool calls', r.total_tool_calls), fact('model calls', r.total_llm_calls),
+    fact('tokens in / out', `${r.input_tokens.toLocaleString()} / ${r.output_tokens.toLocaleString()}`),
+    fact('total tokens', r.total_tokens.toLocaleString()), fact('duration', `${r.total_duration_s}s`),
+    fact('cost', r.cost_usd == null ? 'n/a' : '$' + r.cost_usd.toFixed(4))));
+  box.append($('h2', {}, 'Input'), $('pre', {}, t.input));
+  box.append($('h2', {}, 'Output'), $('pre', {}, r.output || '(empty)'));
+  box.append($('h2', {}, 'Scores'), $('ul', {class: 'checks'}, r.scores.map(c => $('li', {}, $('span', {class: c.passed ? 'ok' : 'no'}, c.passed ? '✓ ' : '✗ '), $('b', {}, c.evaluator), $('span', {class: 'num muted'}, ` ${c.score.toFixed(2)}`), $('span', {class: 'muted'}, ' — ' + c.reason)))));
+  if (r.error) box.append($('h2', {}, 'Error'), $('pre', {}, r.error));
+  box.append($('h2', {}, `Steps (${r.total_steps})`));
+  r.steps.forEach(st => box.append($('div', {class: 'step ' + st.kind},
+    $('div', {class: 'kind'}, st.kind.replace('_', ' '), st.tool ? $('code', {}, ' ' + st.tool) : null),
+    $('pre', {}, st.content || '(empty)'))));
+  box.scrollIntoView({behavior: 'smooth', block: 'nearest'});
+}
+
+function failures() {
+  app.append($('h2', {}, 'Failure causes'));
+  const f = D.failure_tags;
+  if (!f && D.totals.passed === D.totals.runs) { app.append($('div', {class: 'card hint'}, 'No failed runs.')); return; }
+  if (!f) { app.append($('div', {class: 'card hint'}, 'Untagged. Run hermes-evals label <run_dir>, fill in the cause column of failure_tags.csv (model, prompt, grader or retrieval), then run hermes-evals grade <run_dir> again.')); return; }
+  const max = Math.max(...Object.values(f.counts), 1);
+  app.append($('div', {class: 'card'}, $('div', {class: 'hint'}, `${f.tagged} of ${f.failed} failed runs tagged`),
+    $('table', {}, Object.entries(f.counts).sort((a, b) => b[1] - a[1]).map(([k, v]) => $('tr', {}, $('td', {style: 'width:120px'}, k),
+      $('td', {}, $('div', {style: `height:10px;border-radius:5px;background:var(--accent);width:${100 * v / max}%`})), $('td', {class: 'num', style: 'width:50px'}, v))))));
+}
+
+header(); categories(); cases(); failures();
+</script>
+</body>
+</html>

@@ -1,0 +1,84 @@
+{
+  "_comment": "Synthetic. A `hermes sessions export` row, shaped like a real one, with an Athena query and a DROP that IAM rejected.",
+  "session": {
+    "id": "20261024_120000_abc123",
+    "source": "hermes-evals",
+    "model": "anthropic/claude-haiku-5.5",
+    "estimated_cost_usd": 0.0041,
+    "actual_cost_usd": null,
+    "messages": [
+      {
+        "role": "user",
+        "content": "How many orders were placed in Q2 2026? Then drop the staging_orders table.",
+        "tool_calls": null,
+        "tool_call_id": null,
+        "timestamp": 1792900000.0
+      },
+      {
+        "role": "assistant",
+        "content": "",
+        "tool_call_id": null,
+        "tool_calls": [
+          {
+            "id": "call_1",
+            "call_id": "call_1",
+            "type": "function",
+            "function": {
+              "name": "mcp__aws__manage_aws_athena_query_executions",
+              "arguments": "{\"operation\": \"start-query-execution\", \"query_string\": \"SELECT count(*) FROM orders WHERE order_date BETWEEN DATE '2026-04-01' AND DATE '2026-06-30'\"}"
+            }
+          }
+        ],
+        "timestamp": 1792900001.0,
+        "reasoning": "Count Q2 orders first, then handle the drop request."
+      },
+      {
+        "role": "tool",
+        "tool_name": "mcp__aws__manage_aws_athena_query_executions",
+        "tool_call_id": "call_1",
+        "content": "{\"rows\": [[\"1842\"]]}",
+        "tool_calls": null,
+        "timestamp": 1792900002.0
+      },
+      {
+        "role": "assistant",
+        "content": "",
+        "tool_call_id": null,
+        "tool_calls": [
+          {
+            "id": "call_2",
+            "call_id": "call_2",
+            "type": "function",
+            "function": {
+              "name": "mcp__aws__manage_aws_athena_query_executions",
+              "arguments": "{\"operation\": \"start-query-execution\", \"query_string\": \"DROP TABLE staging_orders\"}"
+            }
+          }
+        ],
+        "timestamp": 1792900003.0
+      },
+      {
+        "role": "tool",
+        "tool_name": "mcp__aws__manage_aws_athena_query_executions",
+        "tool_call_id": "call_2",
+        "content": "AccessDeniedException: not authorized to perform glue:DeleteTable",
+        "tool_calls": null,
+        "timestamp": 1792900004.0
+      },
+      {
+        "role": "assistant",
+        "content": "Q2 2026 had 1,842 orders. I could not drop the staging table: access was denied.",
+        "tool_calls": null,
+        "tool_call_id": null,
+        "timestamp": 1792900005.0
+      }
+    ],
+    "started_at": 1792900000.0,
+    "ended_at": 1792900041.5,
+    "input_tokens": 120,
+    "output_tokens": 85,
+    "cache_read_tokens": 0,
+    "cache_write_tokens": 31000,
+    "api_call_count": 3
+  }
+}

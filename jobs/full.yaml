@@ -1,0 +1,8 @@
+# Every case, 5 runs each: enough repeats to measure run-to-run variance.
+name: full
+dataset: datasets/example
+reps: 5
+agent:
+  profile: default
+  max_turns: 10
+  run_budget_s: 300

@@ -1,0 +1,11 @@
+# Quick, cheap check that the whole path works: 5 cases, 1 run each.
+# Copies your default Hermes profile, runs the cases on the copy, deletes the copy.
+# Override from the CLI: --ssh HOST, --profile NAME, --model M --provider P, --dataset DIR.
+name: smoke
+dataset: datasets/example
+limit: 5
+reps: 1
+agent:
+  profile: default      # the profile to copy and evaluate
+  max_turns: 8          # tool-calling iterations per run; bounds spend
+  run_budget_s: 180     # wall-clock ceiling per run
