@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 
 from hermes_evals import evaluators
+from hermes_evals.config import load_dataset
 from hermes_evals.evaluators import (
     CodeEvaluator,
     DecisionJudgeEvaluator,
@@ -45,7 +46,7 @@ def test_every_built_in_extends_a_code_or_judge_base():
 
 def test_evaluator_expected_overrides_case_expected():
     case = Case(id="t", input="q", category="c", expected="1842",
-                evaluators=[{"type": "answer_correct"}, {"type": "tool_recall", "expected": ["athena"]}])
+                evaluators=[{"type": "answer_correct"}, {"type": "tool_recall", "expected": ["mcp__aws__manage_aws_athena_query_executions"]}])
     assert [s.passed for s in evaluate(case, TRAJ)] == [True, True]
 
 
@@ -126,17 +127,47 @@ def test_grounded_skips_small_numbers_and_answers_without_figures():
 # -- process: Vertex AI trajectory precision, recall and in-order match ---------------------------
 
 def test_tool_recall_is_the_share_of_reference_calls_made():
-    assert run("tool_recall", TRAJ, ["athena"]).score == 1.0
-    assert run("tool_recall", TRAJ, ["athena", "glue"]).score == 0.5
+    assert run("tool_recall", TRAJ, ["mcp__aws__manage_aws_athena_query_executions"]).score == 1.0
+    assert run("tool_recall", TRAJ, ["mcp__aws__manage_aws_athena_query_executions", "glue"]).score == 0.5
     assert run("tool_recall", reply("no tools"), []).score == 1.0
 
 
 def test_tool_precision_is_the_share_of_calls_that_were_expected():
     # The fixture's two calls are the SELECT and the DROP; only the SELECT is in the reference.
-    assert run("tool_precision", TRAJ, [{"name": "athena", "args": "select"}]).score == 0.5
+    assert run("tool_precision", TRAJ, [{"name": "mcp__aws__manage_aws_athena_query_executions", "args": "select"}]).score == 0.5
     assert run("tool_precision", reply("x", calls("search", "search")), ["search"]).score == 1.0  # repeats are fine
     assert run("tool_precision", reply("x", calls("terminal")), []).score == 0.0  # no tools were expected
     assert run("tool_precision", reply("no tools"), ["anything"]).score == 1.0
+
+
+def test_a_list_of_args_must_all_match_one_call():
+    query, other = ToolCall("q", '{"sql": "FROM orders WHERE channel = \'web\'"}'), ToolCall("q", '{"day": "2026-01-05"}')
+    spec = [{"name": "q", "args": ["orders", "web", "2026-01-05"]}]
+    assert not run("tool_recall", reply("x", [query, other]), spec).passed  # split across calls: no
+    assert run("tool_recall", reply("x", [query]), [{"name": "q", "args": ["ORDERS", "web"]}]).passed
+
+
+def test_dict_args_check_specific_keys_with_equals_or_contains():
+    call = ToolCall("q", json.dumps({"ctx": {"Catalog": "C", "Database": "D"}, "sql": "SELECT 1 FROM orders", "op": "start"}))
+    def ok(args):
+        return run("tool_recall", reply("x", [call]), [{"name": "q", "args": args}]).passed
+    assert ok({"ctx": {"equals": {"Catalog": "C", "Database": "D"}}, "sql": {"contains": ["ORDERS", "select"]}})
+    assert ok({"op": {"equals": "start"}})
+    assert not ok({"op": {"equals": "star"}})  # equals is exact, even for strings
+    assert not ok({"ctx": {"equals": {"Database": "D"}}})  # an object must equal the whole value
+    assert not ok({"sql": {"contains": "Catalog"}})  # contains only looks inside its own key
+    assert not ok({"missing": {"contains": "x"}})
+    assert not run("tool_recall", reply("x", [ToolCall("q", "not json")]),
+                   [{"name": "q", "args": {"sql": {"contains": "x"}}}]).passed
+
+
+@pytest.mark.parametrize("args", [{"sql": "orders"}, {"sql": {"like": "x"}}, {"sql": {"contains": 5}}, 7])
+def test_malformed_args_fail_when_the_dataset_loads(tmp_path, args):
+    (tmp_path / "dataset.yaml").write_text("name: t\ntask: t\ncategories: [c]\n")
+    case = {"id": "a", "category": "c", "input": "q", "evaluators": [{"type": "tool_recall", "expected": [{"name": "q", "args": args}]}]}
+    (tmp_path / "cases.jsonl").write_text(json.dumps(case) + "\n")
+    with pytest.raises(HarnessError, match="line 1"):
+        load_dataset(tmp_path)
 
 
 def test_tool_order_allows_extra_calls_but_not_reordering():

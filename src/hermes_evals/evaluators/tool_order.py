@@ -3,7 +3,7 @@
 Defined as Vertex AI's trajectory_in_order_match: the reference is a subsequence of the agent's calls, with extra
 calls allowed in between. With `exact: true` it is trajectory_exact_match instead: the same calls, in the same
 order, and nothing else. Scores 1 or 0.
-`expected` is the reference: a list of tool names, or of {"name": regex, "args": regex}.
+`expected` is the reference: a list of tool names, or of {"name": exact name, "args": ...} (see ToolSpec).
 """
 
 from __future__ import annotations
@@ -16,6 +16,9 @@ class ToolOrder(CodeEvaluator):
     def __init__(self, exact: bool = False, **kwargs):
         super().__init__(**kwargs)
         self.exact = exact
+
+    def check(self, expected):
+        tool_specs(expected)
 
     def score(self, input, expected, trajectory):
         specs, calls = tool_specs(expected), trajectory.tool_calls

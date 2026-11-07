@@ -73,7 +73,8 @@ def load_dataset(path: str | Path) -> Dataset:
             if case.category not in categories:
                 raise HarnessError(f"category {case.category!r} is not one of {categories}")
             for spec in case.evaluators:
-                evaluators.build(spec)
+                evaluator, expected = evaluators.build(spec)
+                evaluator.check(case.expected if expected is None else expected)
         except (TypeError, KeyError, json.JSONDecodeError, HarnessError) as exc:
             raise HarnessError(f"{path}/cases.jsonl line {n}: {exc}") from exc
         cases.append(case)

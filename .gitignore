@@ -1,7 +1,8 @@
 # Runs hold trajectories and labels from real agents: never commit them.
 results/
-# Private datasets with real expected answers.
-datasets/nl2sql/
+# Datasets hold real questions and expected answers; only the example ships.
+datasets/*
+!datasets/example/
 # Calibration sets hold real responses and your labels; only the example ships.
 calibration/*
 !calibration/example/

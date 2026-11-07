@@ -20,6 +20,7 @@ class Case:
     category: str
     expected: Any = None  # default expectation, used by evaluators that don't set their own
     evaluators: list[dict[str, Any]] = field(default_factory=list)
+    reference: str | None = None  # the reference solution: how the expected answer was found (a query, a script)
 
 
 class StepKind(StrEnum):

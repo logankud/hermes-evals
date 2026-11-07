@@ -103,6 +103,7 @@ Each line of `cases.jsonl`:
 {"id": "q2_orders", "category": "reporting",
  "input": "How many orders were placed in Q2 2026?",
  "expected": "1842",
+ "reference": "SELECT count(*) FROM orders WHERE order_date BETWEEN DATE '2026-04-01' AND DATE '2026-06-30'",
  "evaluators": [
    {"type": "answer_correct"},
    {"type": "grounded"},
@@ -113,7 +114,8 @@ Each line of `cases.jsonl`:
 
 Each evaluator gets the case's `input`, an `expected` value and the run's trajectory, and returns a score
 from 0 to 1. `expected` is the evaluator's own field if it has one, otherwise the case's. A run passes when
-every evaluator passes. Categories slice a dataset, such as happy path, edge case and adversarial, so the
+every evaluator passes. `reference` is optional: the reference solution, meaning how you found the expected
+answer (the query or script), so you can check it again later. No built-in evaluator grades it yet. Categories slice a dataset, such as happy path, edge case and adversarial, so the
 report can give a pass rate per slice. Each case's `category` must be one of the categories listed in
 `dataset.yaml`; a typo fails when the dataset loads, before any agent call. Pin factual questions to closed periods, such as a past quarter, so expected answers
 stay stable while production data changes.
@@ -134,9 +136,18 @@ Evaluators are named for what they measure, in five groups:
 | | `states_assumptions` | optionally, the ambiguity | Jev's probability that the answer states the assumption it made; passes at 0.5 |
 | Overall | `pass_fail` | optionally, what a good response does | Jev's probability that the response is good; passes at 0.5. The simplest judge, and the place to start calibrating against your own good/bad labels |
 
-Reference tool calls are a list of tool names, or of `{"name": regex, "args": regex}`. A call matches on its
-name and, if given, its arguments. Repeating a correct call doesn't lower precision. `[]` means no tools
-should be called.
+Reference tool calls are a list of exact tool names, or of `{"name": exact name, "args": ...}`. A call matches on
+its name and, if given, its arguments. `args` is either a string or list of strings that must all appear somewhere
+in the arguments, ignoring case, or a dict that checks specific argument keys:
+
+```json
+{"name": "athena_query", "args": {
+  "context": {"equals": {"Catalog": "AwsDataCatalog", "Database": "sales"}},
+  "query_string": {"contains": ["orders", "2026-01-05"]}}}
+```
+
+`equals` means the key's value is exactly this; `contains` means it contains every string, ignoring case. Keys you
+don't list are ignored. Repeating a correct call doesn't lower precision. `[]` means no tools should be called.
 
 Every evaluator also takes `name` and `threshold`, the score needed to pass, which defaults to 1.0.
 

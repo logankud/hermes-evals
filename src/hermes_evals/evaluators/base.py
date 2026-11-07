@@ -32,6 +32,9 @@ class Evaluator(ABC):
         value, reason = self.score(input, expected, trajectory)
         return Score(self.name, value, value >= self.threshold, reason)
 
+    def check(self, expected: Any) -> None:
+        """Raise HarnessError if `expected` is malformed. Called when the dataset loads, before any agent call."""
+
     @abstractmethod
     def score(self, input: str, expected: Any, trajectory: Trajectory) -> tuple[float, str]:
         """Return a score from 0.0 to 1.0 and a one-line reason."""

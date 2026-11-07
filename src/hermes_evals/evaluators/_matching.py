@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+import json
 import math
 import re
 from dataclasses import dataclass
 from typing import Any
 
-from ..models import ToolCall
+from ..models import HarnessError, ToolCall
 
 # A number as people write it: optional sign and $, thousands separators, decimals, a k/M/B suffix, and %.
 # Digits glued to a letter (Q2, v3) are not numbers.
@@ -52,16 +53,66 @@ def close(a: float, b: float, rel_tol: float) -> bool:
     return math.isclose(a, b, rel_tol=rel_tol, abs_tol=1e-9)
 
 
+def _contains(wanted: str | list[str], text: str) -> bool:
+    """Every string in `wanted` appears in `text`, ignoring case."""
+    return all(w.lower() in text.lower() for w in ([wanted] if isinstance(wanted, str) else wanted))
+
+
+def _is_strings(value: Any) -> bool:
+    return isinstance(value, str) or (isinstance(value, list) and all(isinstance(v, str) for v in value))
+
+
 @dataclass(frozen=True, slots=True)
 class ToolSpec:
-    """An expected tool call: a regex on the tool name, and optionally a regex on its arguments."""
+    """An expected tool call: the exact tool name, and optionally what its arguments must hold.
+
+    `args` is one of:
+    - a string, or a list of strings, that must all appear somewhere in the raw arguments (ignoring case);
+    - a dict of argument keys, each with one check:
+        {"equals": value}               the key's value is exactly this (any JSON value)
+        {"contains": "x" or ["x", ...]} the key's value contains every string (ignoring case)
+    """
 
     name: str
-    args: str | None = None
+    args: str | list[str] | dict[str, Any] | None = None
+
+    def __post_init__(self) -> None:
+        if self.args is None or _is_strings(self.args):
+            return
+        if not isinstance(self.args, dict):
+            raise HarnessError(f"{self.name}: args must be a string, a list of strings or a dict of keys")
+        for key, check in self.args.items():
+            if not (isinstance(check, dict) and len(check) == 1 and next(iter(check)) in ("equals", "contains")):
+                raise HarnessError(f'{self.name}: args.{key} must be {{"equals": value}} or {{"contains": ...}}')
+            if "contains" in check and not _is_strings(check["contains"]):
+                raise HarnessError(f"{self.name}: args.{key}.contains must be a string or a list of strings")
 
     def matches(self, call: ToolCall) -> bool:
-        return bool(re.search(self.name, call.name)) and (
-            self.args is None or bool(re.search(self.args, call.arguments or "", re.IGNORECASE)))
+        if call.name != self.name:
+            return False
+        if self.args is None:
+            return True
+        if not isinstance(self.args, dict):
+            return _contains(self.args, call.arguments or "")
+        try:
+            actual = json.loads(call.arguments or "{}")
+        except json.JSONDecodeError:
+            return False
+        if not isinstance(actual, dict):
+            return False
+        for key, check in self.args.items():
+            if key not in actual:
+                return False
+            value = actual[key]
+            if "equals" in check and value != check["equals"]:
+                return False
+            text = value if isinstance(value, str) else json.dumps(value)
+            if "contains" in check and not _contains(check["contains"], text):
+                return False
+        return True
+
+    def __str__(self) -> str:
+        return f"{self.name}({self.args})" if self.args else self.name
 
 
 def tool_specs(expected: Any) -> list[ToolSpec]:
